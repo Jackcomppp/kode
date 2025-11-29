@@ -1,91 +1,54 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "esModuleInterop": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": false,
-    "resolveJsonModule": true,
+    // Environment setup & latest features
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
     "allowJs": true,
-    "checkJs": false,
-    "outDir": "dist",
-    "rootDir": "src",
-    "jsx": "react",
-    "declaration": false,
-    "sourceMap": true,
-    "baseUrl": ".",
-    "paths": {
-      "@components": ["src/components"],
-      "@components/*": ["src/components/*"],
-      "@commands": ["src/commands.ts"],
-      "@commands/*": ["src/commands/*"],
-      "@utils": ["src/utils"],
-      "@utils/*": ["src/utils/*"],
-      "@constants": ["src/constants"],
-      "@constants/*": ["src/constants/*"],
-      "@hooks": ["src/hooks"],
-      "@hooks/*": ["src/hooks/*"],
-      "@services": ["src/services"],
-      "@services/*": ["src/services/*"],
-      "@screens": ["src/screens"],
-      "@screens/*": ["src/screens/*"],
-      "@tools": ["src/tools.ts"],
-      "@tools/*": ["src/tools/*"],
-      "@tool": ["src/Tool.ts"],
-      "@kode-types": ["src/types"],
-      "@kode-types/*": ["src/types/*"],
-      "@context": ["src/context.ts"],
-      "@context/*": ["src/context/*"],
-      "@history": ["src/history.ts"],
-      "@costTracker": ["src/cost-tracker.ts"],
-      "@permissions": ["src/permissions.ts"],
-      "@query": ["src/query.ts"],
-      "@messages": ["src/messages.ts"],
-      "*": ["node_modules/*", "src/types/*", "src/*"]
-    },
-    "types": ["bun-types", "node"],
-    "allowSyntheticDefaultImports": true,
-    "noEmitOnError": false,
-    "ignoreDeprecations": "5.0",
-    "useUnknownInCatchVariables": false,
-    "noErrorTruncation": true,
-    "noEmit": false,
-    "skipDefaultLibCheck": true,
-    "isolatedModules": true,
-    "allowUnreachableCode": true,
-    "allowUnusedLabels": true,
-    "noFallthroughCasesInSwitch": false,
-    "noImplicitReturns": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noUncheckedIndexedAccess": false,
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "plugins": [
-      {
-        "transform": "ts-transform-define",
-        "type": "config",
-        "config": {
-          "MACRO": "src/constants/macros.ts"
-        }
-      }
-    ]
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node",
-    "transpileOnly": true,
-    "compilerOptions": {
-      "module": "NodeNext"
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Path mappings
+    "baseUrl": ".",
+    "paths": {
+      "@services/*": ["./src/services/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@tools": ["./src/tools.ts"],
+      "@tools/*": ["./src/tools/*"],
+      "@tool": ["./src/Tool.ts"],
+      "@commands": ["./src/commands.ts"],
+      "@commands/*": ["./src/commands/*"],
+      "@components/*": ["./src/components/*"],
+      "@screens/*": ["./src/screens/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@types/*": ["./src/types/*"],
+      "@kode-types/*": ["./src/types/*"],
+      "@context": ["./src/context.ts"],
+      "@context/*": ["./src/context/*"],
+      "@permissions": ["./src/permissions.ts"],
+      "@history": ["./src/history.ts"],
+      "@messages": ["./src/messages.ts"],
+      "@costTracker": ["./src/cost-tracker.ts"],
+      "@query": ["./src/query.ts"]
     }
   }
-} 
+}

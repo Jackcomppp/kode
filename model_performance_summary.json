@@ -1,0 +1,5 @@
+[
+  {"model": "FNO", "final_loss": 0.045, "training_time": 12.3, "parameters": 45280},
+  {"model": "CNN", "final_loss": 0.041, "training_time": 8.7, "parameters": 38912},
+  {"model": "ResShift", "final_loss": 0.035, "training_time": 15.2, "parameters": 42156}
+]

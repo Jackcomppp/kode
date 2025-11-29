@@ -33,6 +33,81 @@ function fixRelativeImports(dir) {
     }
     if (!p.endsWith('.js')) continue
     let text = readFileSync(p, 'utf8')
+
+    // 先修复路径别名为相对路径 - 处理 @xxx 和 @xxx/path 两种格式
+    text = text.replace(/(from\s+['"])@([a-zA-Z-]+)(\/[^'"\n]*)?(['"])/gm, (m, a, pkg, path, c) => {
+      // 映射 @ 别名到相对路径
+      const mapping = {
+        'services': './services',
+        'constants': './constants',
+        'utils': './utils',
+        'tools': './tools',
+        'tool': './Tool',
+        'commands': './commands',
+        'components': './components',
+        'screens': './screens',
+        'hooks': './hooks',
+        'types': './types',
+        'kode-types': './types',
+        'context': './context',
+        'permissions': './permissions',
+        'history': './history',
+        'messages': './messages',
+        'costTracker': './cost-tracker',
+        'query': './query',
+      }
+
+      let relativePath = mapping[pkg]
+      if (!relativePath) return m // 保持原样如果找不到映射
+
+      if (path) {
+        relativePath += path
+      }
+
+      // 添加 .js 扩展名
+      if (!/\.(js|json|node|mjs|cjs)$/.test(relativePath)) {
+        relativePath += '.js'
+      }
+
+      return a + relativePath + c
+    })
+
+    // 处理 export ... from - 处理 @xxx 和 @xxx/path 两种格式
+    text = text.replace(/(export\s+[^;]*?from\s+['"])@([a-zA-Z-]+)(\/[^'"\n]*)?(['"])/gm, (m, a, pkg, path, c) => {
+      const mapping = {
+        'services': './services',
+        'constants': './constants',
+        'utils': './utils',
+        'tools': './tools',
+        'tool': './Tool',
+        'commands': './commands',
+        'components': './components',
+        'screens': './screens',
+        'hooks': './hooks',
+        'types': './types',
+        'kode-types': './types',
+        'context': './context',
+        'permissions': './permissions',
+        'history': './history',
+        'messages': './messages',
+        'costTracker': './cost-tracker',
+        'query': './query',
+      }
+
+      let relativePath = mapping[pkg]
+      if (!relativePath) return m
+
+      if (path) {
+        relativePath += path
+      }
+
+      if (!/\.(js|json|node|mjs|cjs)$/.test(relativePath)) {
+        relativePath += '.js'
+      }
+
+      return a + relativePath + c
+    })
+
     // Handle: from '...'
     text = text.replace(/(from\s+['"])(\.{1,2}\/[^'"\n]+)(['"])/gm, (m, a, spec, c) => {
       if (/\.(js|json|node|mjs|cjs)$/.test(spec)) return m
@@ -98,6 +173,20 @@ import('./entrypoints/cli.js').catch(err => {
     console.log('✅ yoga.wasm copied to dist')
   } catch (err) {
     console.warn('⚠️  Could not copy yoga.wasm:', err.message)
+  }
+
+  // Copy DiffSR-main to dist/services/diffsr
+  const diffSRSource = join(SRC_DIR, 'services', 'diffsr')
+  const diffSRTarget = join(OUT_DIR, 'services', 'diffsr')
+  try {
+    if (existsSync(diffSRSource)) {
+      cpSync(diffSRSource, diffSRTarget, { recursive: true })
+      console.log('✅ DiffSR-main copied to dist/services/diffsr')
+    } else {
+      console.warn('⚠️  DiffSR-main not found at src/services/diffsr')
+    }
+  } catch (err) {
+    console.warn('⚠️  Could not copy DiffSR-main:', err.message)
   }
 
   // Create cross-platform CLI wrapper

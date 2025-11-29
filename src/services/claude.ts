@@ -1428,17 +1428,26 @@ async function queryAnthropicNative(
   )
 
   const toolSchemas = await Promise.all(
-    tools.map(async tool =>
-      ({
-        name: tool.name,
-        description: typeof tool.description === 'function' 
-          ? await tool.description() 
-          : tool.description,
-        input_schema:'inputJSONSchema' in tool && tool.inputJSONSchema
-          ? tool.inputJSONSchema
-          : zodToJsonSchema(tool.inputSchema),
-      }) as unknown as Anthropic.Beta.Messages.BetaTool,
-    )
+    tools.map(async tool => {
+      try {
+        return {
+          name: tool.name,
+          description: typeof tool.description === 'function'
+            ? await tool.description()
+            : tool.description,
+          input_schema:'inputJSONSchema' in tool && tool.inputJSONSchema
+            ? tool.inputJSONSchema
+            : zodToJsonSchema(tool.inputSchema),
+        } as unknown as Anthropic.Beta.Messages.BetaTool
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        throw new Error(
+          `Failed to convert schema for tool "${tool.name}": ${errorMsg}\n` +
+          `Tool has inputSchema: ${!!tool.inputSchema}\n` +
+          `Tool has inputJSONSchema: ${!!(tool as any).inputJSONSchema}`
+        )
+      }
+    })
   )
 
   const anthropicMessages = addCacheBreakpoints(messages)

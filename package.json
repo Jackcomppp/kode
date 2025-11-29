@@ -10,6 +10,11 @@
     "node": ">=20.18.1"
   },
   "main": "cli.js",
+  "exports": {
+    ".": "./cli.js",
+    "./api": "./dist/api.bundle.js"
+  },
+  "types": "./dist/api.d.ts",
   "author": "ShareAI-lab <ai-lab@foxmail.com>",
   "license": "Apache-2.0",
   "description": "AI-powered terminal assistant that understands your codebase, edits files, runs commands, and automates development workflows.",
@@ -26,7 +31,9 @@
     "yoga.wasm",
     "dist/**/*",
     "scripts/postinstall.js",
-    ".npmrc"
+    ".npmrc",
+    ".kode/agents/**/*.md",
+    "src/services/diffsr/**/*"
   ],
   "scripts": {
     "dev": "bun run ./src/entrypoints/cli.tsx --verbose",
@@ -51,10 +58,14 @@
     "@commander-js/extra-typings": "^13.1.0",
     "@inkjs/ui": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.15.1",
+    "@types/express": "^4.17.21",
     "@types/lodash-es": "^4.17.12",
     "@types/react": "^19.1.8",
+    "@types/ws": "^8.5.10",
     "ansi-escapes": "^7.0.0",
     "chalk": "^5.4.1",
+    "express": "^4.18.2",
+    "ws": "^8.16.0",
     "cli-highlight": "^2.1.11",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
@@ -98,5 +109,6 @@
     "esbuild": "^0.25.9",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2"
-  }
+  },
+  "private": true
 }

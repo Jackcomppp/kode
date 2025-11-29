@@ -1,0 +1,213 @@
+# 医学图像数据扩充配置文件
+
+# 数据集路径配置
+dataset:
+  input_path: "D:/train/dawanqu/2505医学图像分布外检测/datasets/42+156"
+  output_path: "D:/train/dawanqu/2505医学图像分布外检测/datasets/42+156_augmented"
+  subsets:
+    - train
+    - test
+    - ood
+
+# Stable Diffusion模型配置
+model:
+  # 可选模型:
+  # - stabilityai/stable-diffusion-2-1 (推荐, 平衡质量和速度)
+  # - runwayml/stable-diffusion-v1-5 (轻量, 速度快)
+  # - stabilityai/stable-diffusion-xl-base-1.0 (最高质量, 需要24GB显存)
+  model_id: "stabilityai/stable-diffusion-2-1"
+  device: "cuda"  # cuda 或 cpu
+  use_img2img: true  # 使用img2img保持医学特征
+  torch_dtype: "float16"  # float16 (更快) 或 float32 (更精确)
+
+# 生成参数配置
+generation:
+  images_per_class: 20  # 每个类别生成的图像数量
+  batch_size: 1  # 批次大小
+  
+  # 变换强度范围 (0.0-1.0)
+  # 较低值(0.2-0.4): 保持更多原始特征
+  # 中等值(0.4-0.6): 平衡
+  # 较高值(0.6-0.8): 更多变化
+  strength_range: [0.3, 0.7]
+  
+  # 引导尺度 (guidance_scale)
+  # 较低值(5-7): 更多创造性
+  # 中等值(7-9): 平衡
+  # 较高值(9-15): 更严格遵循提示词
+  guidance_scale_range: [7.0, 9.0]
+  
+  # 推理步数 (num_inference_steps)
+  # 较少步数(20-30): 更快但质量稍低
+  # 中等步数(30-50): 平衡
+  # 较多步数(50-100): 更高质量但更慢
+  num_inference_steps_range: [30, 50]
+  
+  # 随机种子
+  use_random_seed: true
+  fixed_seed: 42  # 当use_random_seed为false时使用
+
+# 质量控制配置
+quality_control:
+  enabled: true
+  
+  # 图像质量评估阈值
+  min_quality_score: 0.6  # 0.0-1.0
+  
+  # 使用CLIP评估图像-文本相似度
+  use_clip_filtering: true
+  min_clip_score: 0.25
+  
+  # 使用美学评分过滤
+  use_aesthetic_filtering: false
+  min_aesthetic_score: 5.0
+  
+  # 检测模糊图像
+  detect_blur: true
+  max_blur_score: 100  # 拉普拉斯方差阈值
+  
+  # 保存被拒绝的图像用于分析
+  save_rejected: true
+  rejected_dir: "rejected_images"
+
+# 提示词配置
+prompts:
+  # 疾病特定提示词模板
+  templates:
+    medical_detail: "high quality medical photograph of {disease}, dermatology clinical image, professional lighting, clear details"
+    clinical_view: "clinical dermatology photo showing {disease}, close-up view, medical documentation quality"
+    diagnostic: "detailed medical image of {disease} on human skin, hospital photography, diagnostic quality"
+    textbook: "professional dermatological photograph of {disease}, medical textbook quality, clear skin condition"
+    documentation: "medical documentation photo of {disease}, clinical setting, dermatology department"
+  
+  # 视角变化
+  view_variations:
+    - ", frontal view"
+    - ", side view"
+    - ", close-up view"
+    - ", oblique view"
+    - ", overhead view"
+  
+  # 光照变化
+  lighting_variations:
+    - ", natural lighting"
+    - ", clinical lighting"
+    - ", soft lighting"
+    - ", diffused lighting"
+    - ", professional medical lighting"
+  
+  # 质量增强词
+  quality_enhancements:
+    - ", high resolution"
+    - ", detailed texture"
+    - ", clear focus"
+    - ", sharp details"
+    - ", professional photography"
+  
+  # 负面提示词
+  negative_prompt: >
+    blurry, low quality, distorted, deformed, cartoon, anime, drawing,
+    illustration, text, watermark, signature, low resolution, pixelated,
+    overexposed, underexposed, artificial, synthetic, multiple subjects,
+    collage, frame, border, graphic, rendered, 3d, painting
+
+# 数据增强配置
+augmentation:
+  # 后处理增强
+  post_processing:
+    enabled: true
+    
+    # 颜色调整
+    color_jitter:
+      enabled: true
+      brightness: 0.1
+      contrast: 0.1
+      saturation: 0.1
+      hue: 0.05
+    
+    # 锐化
+    sharpen:
+      enabled: true
+      factor: 1.2
+    
+    # 噪声去除
+    denoise:
+      enabled: true
+      strength: 5
+  
+  # 传统数据增强（应用于生成的图像）
+  traditional:
+    enabled: false
+    methods:
+      - rotation: [-10, 10]  # 度数范围
+      - horizontal_flip: 0.5  # 概率
+      - vertical_flip: 0.0
+      - zoom: [0.9, 1.1]
+
+# 输出配置
+output:
+  # 图像格式
+  format: "jpg"  # jpg, png
+  quality: 95  # JPEG质量 (1-100)
+  
+  # 分辨率
+  resolution: [512, 512]  # [width, height]
+  
+  # 文件命名
+  filename_pattern: "aug_{index:04d}_{source_name}"
+  
+  # 保存元数据
+  save_metadata: true
+  metadata_format: "json"  # json, csv
+  
+  # 创建混合数据集（原始+生成）
+  create_mixed_dataset: true
+  mixed_dataset_name: "mixed"
+
+# 日志配置
+logging:
+  enabled: true
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_file: "augmentation_log.txt"
+  save_progress: true
+  progress_file: "progress.json"
+
+# 性能优化
+performance:
+  # 使用混合精度
+  use_fp16: true
+  
+  # 启用注意力切片（降低显存使用）
+  enable_attention_slicing: true
+  
+  # 启用VAE切片（降低显存使用）
+  enable_vae_slicing: true
+  
+  # CPU卸载（极低显存时使用）
+  enable_cpu_offload: false
+  
+  # 编译模型（PyTorch 2.0+）
+  compile_model: false
+  
+  # 多GPU支持
+  use_multi_gpu: false
+  gpu_ids: [0]
+
+# 高级选项
+advanced:
+  # 使用ControlNet保持结构
+  use_controlnet: false
+  controlnet_model: "lllyasviel/sd-controlnet-canny"
+  controlnet_conditioning_scale: 0.5
+  
+  # 使用LoRA微调
+  use_lora: false
+  lora_path: ""
+  lora_scale: 0.8
+  
+  # 使用Textual Inversion
+  use_textual_inversion: false
+  textual_inversion_path: ""
+  
+  # 使用Safety Checker
+  use_safety_checker: false

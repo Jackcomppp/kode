@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    // Environment setup & latest features
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "allowJs": true,
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    // Some stricter flags (disabled by default)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Path mappings
+    "baseUrl": ".",
+    "paths": {
+      "@services/*": ["./src/services/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@tools": ["./src/tools.ts"],
+      "@tools/*": ["./src/tools/*"],
+      "@tool": ["./src/Tool.ts"],
+      "@commands": ["./src/commands.ts"],
+      "@commands/*": ["./src/commands/*"],
+      "@components/*": ["./src/components/*"],
+      "@screens/*": ["./src/screens/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@types/*": ["./src/types/*"],
+      "@kode-types/*": ["./src/types/*"],
+      "@context": ["./src/context.ts"],
+      "@context/*": ["./src/context/*"],
+      "@permissions": ["./src/permissions.ts"],
+      "@history": ["./src/history.ts"],
+      "@messages": ["./src/messages.ts"],
+      "@costTracker": ["./src/cost-tracker.ts"],
+      "@query": ["./src/query.ts"]
+    }
+  }
+}

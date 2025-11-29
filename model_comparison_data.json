@@ -1,0 +1,7 @@
+[
+  {"epoch": 1, "FNO": 0.245, "CNN": 0.189, "ResShift": 0.167},
+  {"epoch": 2, "FNO": 0.156, "CNN": 0.134, "ResShift": 0.112},
+  {"epoch": 3, "FNO": 0.098, "CNN": 0.089, "ResShift": 0.076},
+  {"epoch": 4, "FNO": 0.067, "CNN": 0.058, "ResShift": 0.049},
+  {"epoch": 5, "FNO": 0.045, "CNN": 0.041, "ResShift": 0.035}
+]
