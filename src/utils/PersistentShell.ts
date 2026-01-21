@@ -220,13 +220,40 @@ export class PersistentShell {
     this.shellArgs = args
     this.shellType = type
 
+    // 🔥 构建增强的环境变量，确保 GPU/CUDA 可见
+    const enhancedEnv = {
+      ...process.env,
+      GIT_EDITOR: 'true',
+    }
+
+    // 🔥 添加常见的 CUDA 路径到 LD_LIBRARY_PATH（如果尚未设置）
+    const cudaPaths = [
+      '/usr/local/cuda/lib64',
+      '/usr/local/cuda-12/lib64',
+      '/usr/local/cuda-11/lib64',
+      '/usr/lib/x86_64-linux-gnu',  // 系统 NVIDIA 驱动位置
+    ]
+    const existingLdPath = process.env.LD_LIBRARY_PATH || ''
+    const newLdPath = [...cudaPaths, existingLdPath].filter(Boolean).join(':')
+    if (newLdPath) {
+      enhancedEnv.LD_LIBRARY_PATH = newLdPath
+    }
+
+    // 🔥 设置 CUDA 相关环境变量（如果尚未设置）
+    if (!enhancedEnv.CUDA_HOME && existsSync('/usr/local/cuda')) {
+      enhancedEnv.CUDA_HOME = '/usr/local/cuda'
+    }
+
+    // 🔥 确保 nvidia-smi 在 PATH 中
+    const nvidiaPath = '/usr/bin'
+    if (enhancedEnv.PATH && !enhancedEnv.PATH.includes(nvidiaPath)) {
+      enhancedEnv.PATH = `${enhancedEnv.PATH}:${nvidiaPath}`
+    }
+
     this.shell = spawn(this.binShell, this.shellArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd,
-      env: {
-        ...process.env,
-        GIT_EDITOR: 'true',
-      },
+      env: enhancedEnv,
     })
 
     this.cwd = cwd
@@ -249,14 +276,31 @@ export class PersistentShell {
       this.isAlive = false
     })
 
-    const id = Math.floor(Math.random() * 0x10000)
+    // Use process PID + random to ensure uniqueness and avoid conflicts
+    const randomId = Math.floor(Math.random() * 0x1000)
       .toString(16)
-      .padStart(4, '0')
+      .padStart(3, '0')
+    const id = `${process.pid}-${randomId}`
 
     this.statusFile = TEMPFILE_PREFIX + id + FILE_SUFFIXES.STATUS
     this.stdoutFile = TEMPFILE_PREFIX + id + FILE_SUFFIXES.STDOUT
     this.stderrFile = TEMPFILE_PREFIX + id + FILE_SUFFIXES.STDERR
     this.cwdFile = TEMPFILE_PREFIX + id + FILE_SUFFIXES.CWD
+
+    // Clean up any existing files before creating new ones to avoid permission conflicts
+    for (const file of [this.statusFile, this.stdoutFile, this.stderrFile, this.cwdFile]) {
+      if (fs.existsSync(file)) {
+        try {
+          fs.unlinkSync(file)
+        } catch (err) {
+          // If we can't delete the file, it might belong to another user
+          // This should be rare with PID-based naming
+          logError(`Failed to clean up old temp file ${file}: ${err}`)
+        }
+      }
+    }
+
+    // Create new temp files
     for (const file of [this.statusFile, this.stdoutFile, this.stderrFile]) {
       fs.writeFileSync(file, '')
     }

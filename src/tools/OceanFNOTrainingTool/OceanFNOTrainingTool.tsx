@@ -7,7 +7,7 @@ const OceanFNOTrainingToolInputSchema = z.object({
   data_path: z.string().describe("Path to ocean dataset (.npy, .h5, or .nc file)"),
   model_type: z.enum(['fno', 'cnn', 'unet']).default('fno').describe("Deep learning model type"),
   upscale_factor: z.number().default(2).describe("Super-resolution upscale factor (2, 4, 8)"),
-  epochs: z.number().default(50).describe("Number of training epochs"),
+  epochs: z.number().default(10).describe("Number of training epochs"),
   batch_size: z.number().default(8).describe("Training batch size"),
   learning_rate: z.number().default(0.001).describe("Learning rate"),
   output_dir: z.string().optional().describe("Output directory for trained model"),

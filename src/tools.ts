@@ -20,15 +20,8 @@ import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool'
 import { URLFetcherTool } from './tools/URLFetcherTool/URLFetcherTool'
 import { getMCPTools } from './services/mcpClient'
 import { memoize } from 'lodash-es'
-// Ocean data preprocessing tools (modular)
-import { OceanBasicPreprocessTool } from './tools/OceanBasicPreprocessTool/OceanBasicPreprocessTool'
-import { OceanDataFilterTool } from './tools/OceanDataFilterTool/OceanDataFilterTool'
-import { OceanQualityControlTool } from './tools/OceanQualityControlTool/OceanQualityControlTool'
-import { OceanMaskProcessTool } from './tools/OceanMaskProcessTool/OceanMaskProcessTool'
-import { OceanTrainingDataTool } from './tools/OceanTrainingDataTool/OceanTrainingDataTool'
-import { OceanFullPreprocessTool } from './tools/OceanFullPreprocessTool/OceanFullPreprocessTool'
-// Ocean data preprocessing tools (legacy)
-import { OceanDataPreprocessTool } from './tools/OceanDataPreprocessTool/OceanDataPreprocessTool'
+// Ocean data preprocessing - unified tool
+import { OceanPreprocessPipelineTool } from './tools/OceanPreprocessPipelineTool/OceanPreprocessPipelineTool'
 // Ocean data analysis and visualization tools
 import { OceanDatabaseQueryTool } from './tools/OceanDatabaseQueryTool/OceanDatabaseQueryTool'
 import { OceanProfileAnalysisTool } from './tools/OceanProfileAnalysisTool/OceanProfileAnalysisTool'
@@ -49,6 +42,7 @@ import { DiffSRDatasetTool } from './tools/DiffSRDatasetTool/DiffSRDatasetTool'
 import { DiffSRModelTool } from './tools/DiffSRModelTool/DiffSRModelTool'
 import { DiffSRForecastorTool } from './tools/DiffSRForecastorTool/DiffSRForecastorTool'
 import { DiffSRPipelineTool } from './tools/DiffSRPipelineTool/DiffSRPipelineTool'
+import { PredictionPipelineTool } from './tools/PredictionPipelineTool/PredictionPipelineTool'
 
 const ANT_ONLY_TOOLS = [MemoryReadTool as unknown as Tool, MemoryWriteTool as unknown as Tool]
 
@@ -71,15 +65,11 @@ export const getAllTools = (): Tool[] => {
     TodoWriteTool as unknown as Tool,
     WebSearchTool as unknown as Tool,
     URLFetcherTool as unknown as Tool,
-    // Ocean data preprocessing tools (modular)
-    OceanBasicPreprocessTool as unknown as Tool,
-    OceanDataFilterTool as unknown as Tool,
-    OceanQualityControlTool as unknown as Tool,
-    OceanMaskProcessTool as unknown as Tool,
-    OceanTrainingDataTool as unknown as Tool,
-    OceanFullPreprocessTool as unknown as Tool,
-    // Ocean data preprocessing tools (legacy)
-    OceanDataPreprocessTool as unknown as Tool,
+    // ============================================================
+    // 🌊 海洋数据预处理工具
+    // ============================================================
+    // 统一的预处理入口 - 完整流程 + CNN验证
+    OceanPreprocessPipelineTool as unknown as Tool,
     // Ocean data analysis and visualization tools
     OceanDatabaseQueryTool as unknown as Tool,
     OceanProfileAnalysisTool as unknown as Tool,
@@ -100,6 +90,7 @@ export const getAllTools = (): Tool[] => {
     DiffSRModelTool as unknown as Tool,
     DiffSRForecastorTool as unknown as Tool,
     DiffSRPipelineTool as unknown as Tool,
+    PredictionPipelineTool as unknown as Tool,
     ...ANT_ONLY_TOOLS,
   ]
 }

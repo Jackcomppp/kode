@@ -58,6 +58,9 @@ export const PROMPT = `Creates professional geographic visualizations by plottin
 - Configurable DPI and figure size
 - Returns image data and file path
 
+**Language Requirement:**
+- Use English ONLY for all text
+
 **Use Cases:**
 - Ocean station locations and measurements
 - Climate data visualization
@@ -77,6 +80,7 @@ export const PROMPT = `Creates professional geographic visualizations by plottin
 
 **Note:** This tool generates static map images. For production use with Python libraries:
 - matplotlib: Core plotting
+- Use English only for all text elements in plotting code
 - cartopy: Map projections and geographic features
 - geopandas: Spatial data handling
 - numpy/scipy: Data processing and interpolation`

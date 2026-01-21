@@ -4,8 +4,8 @@ import sys
 import os
 import numpy as np
 
-input_path = "D:/tmp/ERA5wind_vo_128_128_subset_10000.npy"
-output_path = "D:/tmp/ERA5wind_vo_preprocessed.npy"
+input_path = "ERA5wind_vo_128_128_subset_10000.npy"
+output_path = "ERA5wind_preprocessed.npy"
 data_type = "era5"
 operation = "full"
 
@@ -56,7 +56,7 @@ try:
         }
     }
 
-    if true:
+    if undefined:
         metadata_path = output_path.replace('.npy', '_metadata.json')
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)

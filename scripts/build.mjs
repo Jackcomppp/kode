@@ -34,39 +34,57 @@ function fixRelativeImports(dir) {
     if (!p.endsWith('.js')) continue
     let text = readFileSync(p, 'utf8')
 
+    // 计算当前文件相对于 OUT_DIR 的深度
+    const relativeToOutDir = p.substring(OUT_DIR.length + 1)
+    const depth = relativeToOutDir.split(/[/\\]/).length - 1
+    const prefix = depth > 0 ? '../'.repeat(depth) : './'
+
     // 先修复路径别名为相对路径 - 处理 @xxx 和 @xxx/path 两种格式
     text = text.replace(/(from\s+['"])@([a-zA-Z-]+)(\/[^'"\n]*)?(['"])/gm, (m, a, pkg, path, c) => {
       // 映射 @ 别名到相对路径
       const mapping = {
-        'services': './services',
-        'constants': './constants',
-        'utils': './utils',
-        'tools': './tools',
-        'tool': './Tool',
-        'commands': './commands',
-        'components': './components',
-        'screens': './screens',
-        'hooks': './hooks',
-        'types': './types',
-        'kode-types': './types',
-        'context': './context',
-        'permissions': './permissions',
-        'history': './history',
-        'messages': './messages',
-        'costTracker': './cost-tracker',
-        'query': './query',
+        'services': 'services',
+        'constants': 'constants',
+        'utils': 'utils',
+        'tools': 'tools',
+        'tool': 'Tool',
+        'commands': 'commands',
+        'components': 'components',
+        'screens': 'screens',
+        'hooks': 'hooks',
+        'types': 'types',
+        'kode-types': 'types',
+        'context': 'context',
+        'permissions': 'permissions',
+        'history': 'history',
+        'messages': 'messages',
+        'costTracker': 'cost-tracker',
+        'query': 'query',
       }
 
       let relativePath = mapping[pkg]
       if (!relativePath) return m // 保持原样如果找不到映射
 
+      // 添加正确的前缀（考虑目录深度）
+      relativePath = prefix + relativePath
+
       if (path) {
         relativePath += path
       }
 
-      // 添加 .js 扩展名
+      // 添加 .js 扩展名或 /index.js（如果是目录）
       if (!/\.(js|json|node|mjs|cjs)$/.test(relativePath)) {
-        relativePath += '.js'
+        const baseTargetPath = join(OUT_DIR, relativePath.replace(/^(\.\.\/)+/, ''))
+        // 优先检查 .js 文件是否存在
+        if (existsSync(baseTargetPath + '.js')) {
+          relativePath += '.js'
+        } else if (existsSync(baseTargetPath) && statSync(baseTargetPath).isDirectory()) {
+          // 如果不是 .js 文件但是目录，使用 /index.js
+          relativePath += '/index.js'
+        } else {
+          // 默认添加 .js
+          relativePath += '.js'
+        }
       }
 
       return a + relativePath + c
@@ -75,34 +93,48 @@ function fixRelativeImports(dir) {
     // 处理 export ... from - 处理 @xxx 和 @xxx/path 两种格式
     text = text.replace(/(export\s+[^;]*?from\s+['"])@([a-zA-Z-]+)(\/[^'"\n]*)?(['"])/gm, (m, a, pkg, path, c) => {
       const mapping = {
-        'services': './services',
-        'constants': './constants',
-        'utils': './utils',
-        'tools': './tools',
-        'tool': './Tool',
-        'commands': './commands',
-        'components': './components',
-        'screens': './screens',
-        'hooks': './hooks',
-        'types': './types',
-        'kode-types': './types',
-        'context': './context',
-        'permissions': './permissions',
-        'history': './history',
-        'messages': './messages',
-        'costTracker': './cost-tracker',
-        'query': './query',
+        'services': 'services',
+        'constants': 'constants',
+        'utils': 'utils',
+        'tools': 'tools',
+        'tool': 'Tool',
+        'commands': 'commands',
+        'components': 'components',
+        'screens': 'screens',
+        'hooks': 'hooks',
+        'types': 'types',
+        'kode-types': 'types',
+        'context': 'context',
+        'permissions': 'permissions',
+        'history': 'history',
+        'messages': 'messages',
+        'costTracker': 'cost-tracker',
+        'query': 'query',
       }
 
       let relativePath = mapping[pkg]
       if (!relativePath) return m
 
+      // 添加正确的前缀（考虑目录深度）
+      relativePath = prefix + relativePath
+
       if (path) {
         relativePath += path
       }
 
+      // 添加 .js 扩展名或 /index.js（如果是目录）
       if (!/\.(js|json|node|mjs|cjs)$/.test(relativePath)) {
-        relativePath += '.js'
+        const baseTargetPath = join(OUT_DIR, relativePath.replace(/^(\.\.\/)+/, ''))
+        // 优先检查 .js 文件是否存在
+        if (existsSync(baseTargetPath + '.js')) {
+          relativePath += '.js'
+        } else if (existsSync(baseTargetPath) && statSync(baseTargetPath).isDirectory()) {
+          // 如果不是 .js 文件但是目录，使用 /index.js
+          relativePath += '/index.js'
+        } else {
+          // 默认添加 .js
+          relativePath += '.js'
+        }
       }
 
       return a + relativePath + c
@@ -151,6 +183,67 @@ async function main() {
 
   // Fix relative import specifiers to include .js extension for ESM
   fixRelativeImports(OUT_DIR)
+
+  // Fix files that only contain type definitions (no runtime exports)
+  // These files cause "Export not found" errors at runtime
+  console.log('🔧 Fixing type-only modules...')
+
+  function addMissingExports(jsFilePath, tsFilePath) {
+    if (!existsSync(jsFilePath) || !existsSync(tsFilePath)) return false
+
+    const jsContent = readFileSync(jsFilePath, 'utf8')
+    const tsContent = readFileSync(tsFilePath, 'utf8')
+
+    // Find all type exports in TS file
+    const typeExports = []
+    const typeExportRegex = /export\s+(?:type|interface)\s+(\w+)/g
+    let match
+    while ((match = typeExportRegex.exec(tsContent)) !== null) {
+      typeExports.push(match[1])
+    }
+
+    if (typeExports.length === 0) return false
+
+    // Check which exports are missing in JS file
+    const missingExports = typeExports.filter(name => {
+      const regex = new RegExp(`export\\s+(const|let|var|function|class)\\s+${name}\\b`)
+      return !regex.test(jsContent)
+    })
+
+    if (missingExports.length === 0) return false
+
+    // Add missing exports
+    const exportStatements = '\n// Type-only exports - placeholders for TypeScript types\n' +
+      missingExports.map(name => `export const ${name} = undefined`).join('\n') + '\n'
+
+    const newContent = jsContent.replace(
+      /\/\/# sourceMappingURL=.*/,
+      exportStatements + '//# sourceMappingURL=' + jsFilePath.substring(jsFilePath.lastIndexOf('\\') + 1).replace('.js', '.js.map')
+    )
+
+    writeFileSync(jsFilePath, newContent)
+    return true
+  }
+
+  // List of files that commonly have type-only exports
+  const filesToFix = [
+    { js: join(OUT_DIR, 'Tool.js'), ts: join(SRC_DIR, 'Tool.ts') },
+    { js: join(OUT_DIR, 'types.js'), ts: join(SRC_DIR, 'types.ts') },
+    { js: join(OUT_DIR, 'utils', 'config.js'), ts: join(SRC_DIR, 'utils', 'config.ts') },
+    { js: join(OUT_DIR, 'query.js'), ts: join(SRC_DIR, 'query.ts') },
+  ]
+
+  let fixedCount = 0
+  for (const {js, ts} of filesToFix) {
+    if (addMissingExports(js, ts)) {
+      console.log(`  ✓ Fixed ${js.substring(OUT_DIR.length + 1)}`)
+      fixedCount++
+    }
+  }
+
+  if (fixedCount > 0) {
+    console.log(`✅ Fixed ${fixedCount} type-only modules`)
+  }
 
   // Mark dist as ES module
   writeFileSync(join(OUT_DIR, 'package.json'), JSON.stringify({

@@ -565,6 +565,12 @@ function convertAnthropicMessagesToOpenAIMessages(
           toolContent = JSON.stringify(toolContent)
         }
 
+        // CRITICAL: Ensure tool_use_id exists before creating tool message
+        if (!block.tool_use_id) {
+          console.error('[Claude Service] ⚠️ tool_result missing tool_use_id:', block)
+          continue // Skip this tool_result to avoid OpenAI API error
+        }
+
         toolResults[block.tool_use_id] = {
           role: 'tool',
           content: toolContent,
@@ -1430,7 +1436,7 @@ async function queryAnthropicNative(
   const toolSchemas = await Promise.all(
     tools.map(async tool => {
       try {
-        return {
+        const schema = {
           name: tool.name,
           description: typeof tool.description === 'function'
             ? await tool.description()
@@ -1439,6 +1445,19 @@ async function queryAnthropicNative(
             ? tool.inputJSONSchema
             : zodToJsonSchema(tool.inputSchema),
         } as unknown as Anthropic.Beta.Messages.BetaTool
+
+        // 🔥 Log Bash tool schema for debugging
+        if (tool.name === 'Bash') {
+          console.log('[Claude Service] ===== Bash Tool Schema =====')
+          console.log('[Claude Service] Name:', schema.name)
+          console.log('[Claude Service] Description:', typeof schema.description === 'string'
+            ? schema.description.substring(0, 200) + '...'
+            : schema.description)
+          console.log('[Claude Service] Input Schema:', JSON.stringify(schema.input_schema, null, 2))
+          console.log('[Claude Service] Required fields:', schema.input_schema.required)
+        }
+
+        return schema
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
         throw new Error(
@@ -1450,11 +1469,35 @@ async function queryAnthropicNative(
     })
   )
 
+  // 🔥 Log overall tool information
+  console.log('[Claude Service] ===== Tool Summary =====')
+  console.log('[Claude Service] Total tools:', toolSchemas.length)
+  console.log('[Claude Service] Tool names:', toolSchemas.map(t => t.name).join(', '))
+  const totalSchemaSize = JSON.stringify(toolSchemas).length
+  console.log('[Claude Service] Total tool schema size:', totalSchemaSize, 'chars')
+  if (totalSchemaSize > 50000) {
+    console.warn('[Claude Service] ⚠️ WARNING: Tool schemas are very large (>50KB), may cause issues')
+  }
+
   const anthropicMessages = addCacheBreakpoints(messages)
 
   //  apply cache control
-  const { systemBlocks: processedSystem, messageParams: processedMessages } = 
+  const { systemBlocks: processedSystem, messageParams: processedMessages } =
     applyCacheControlWithLimits(system, anthropicMessages)
+
+  // 🔥 Log system prompt and message size
+  const systemPromptSize = processedSystem.map(b => b.text).join('').length
+  const messagesSize = JSON.stringify(processedMessages).length
+  console.log('[Claude Service] ===== Context Size =====')
+  console.log('[Claude Service] System prompt size:', systemPromptSize, 'chars')
+  console.log('[Claude Service] System blocks count:', processedSystem.length)
+  console.log('[Claude Service] Messages size:', messagesSize, 'chars')
+  console.log('[Claude Service] Messages count:', processedMessages.length)
+  console.log('[Claude Service] Estimated total input tokens:', Math.ceil((systemPromptSize + messagesSize + totalSchemaSize) / 4))
+
+  if (systemPromptSize > 30000) {
+    console.warn('[Claude Service] ⚠️ WARNING: System prompt is very large (>30K chars)')
+  }
   const startIncludingRetries = Date.now()
 
   // 记录系统提示构建过程
@@ -1531,13 +1574,13 @@ async function queryAnthropicNative(
         for await (const event of stream) {
 
           if (signal.aborted) {
-            debugLogger.flow('STREAM_ABORTED', { 
+            debugLogger.flow('STREAM_ABORTED', {
               eventType: event.type,
-              timestamp: Date.now() 
+              timestamp: Date.now()
             })
             throw new Error('Request was cancelled')
           }
-          
+
           switch (event.type) {
             case 'message_start':
               messageStartEvent = event
@@ -1546,18 +1589,35 @@ async function queryAnthropicNative(
                 content: [], // Will be populated from content blocks
               }
               break
-              
+
             case 'content_block_start':
+              // 🔥 添加诊断日志 - 查看 yunwu.ai API 原始响应
+              if (event.content_block.type === 'tool_use') {
+                console.log(`[诊断] 原始API响应 [${event.index}]:`, JSON.stringify(event.content_block, null, 2))
+              }
+
               contentBlocks[event.index] = { ...event.content_block }
+
               // Initialize JSON buffer for tool_use blocks
               if (event.content_block.type === 'tool_use') {
-                inputJSONBuffers.set(event.index, '')
+                // 🔧 CRITICAL FIX: 只有当 input 为空时才初始化 buffer
+                // 如果 yunwu.ai 已经在 start 时提供了完整 input，不要覆盖它
+                const hasInput = event.content_block.input && Object.keys(event.content_block.input).length > 0
+
+                if (!hasInput) {
+                  // 标准 Anthropic 行为：start 时 input 为空，通过 delta 累积
+                  inputJSONBuffers.set(event.index, '')
+                  console.log(`[Claude Service] 🔵 tool_use start: ${event.content_block.name} [${event.index}] - will use delta`)
+                } else {
+                  // yunwu.ai 可能的行为：start 时已有完整 input
+                  console.log(`[Claude Service] 🔵 tool_use start: ${event.content_block.name} [${event.index}] - input already provided`)
+                }
               }
               break
-              
+
             case 'content_block_delta':
               const blockIndex = event.index
-              
+
               // Ensure content block exists
               if (!contentBlocks[blockIndex]) {
                 contentBlocks[blockIndex] = {
@@ -1568,12 +1628,14 @@ async function queryAnthropicNative(
                   inputJSONBuffers.set(blockIndex, '')
                 }
               }
-              
+
               if (event.delta.type === 'text_delta') {
                 contentBlocks[blockIndex].text += event.delta.text
               } else if (event.delta.type === 'input_json_delta') {
                 const currentBuffer = inputJSONBuffers.get(blockIndex) || ''
-                inputJSONBuffers.set(blockIndex, currentBuffer + event.delta.partial_json)
+                const newBuffer = currentBuffer + event.delta.partial_json
+                inputJSONBuffers.set(blockIndex, newBuffer)
+                // Silently accumulate JSON - logging each delta blocks the event loop
               }
               break
               
@@ -1586,22 +1648,36 @@ async function queryAnthropicNative(
             case 'content_block_stop':
               const stopIndex = event.index
               const block = contentBlocks[stopIndex]
-              
-              if (block?.type === 'tool_use' && inputJSONBuffers.has(stopIndex)) {
+
+              if (block?.type === 'tool_use') {
+                const hasBuffer = inputJSONBuffers.has(stopIndex)
                 const jsonStr = inputJSONBuffers.get(stopIndex)
-                if (jsonStr) {
+                const bufferLen = jsonStr?.length || 0
+
+                // 检查是否已有 input（yunwu.ai 可能在 start 时就提供了）
+                const hasExistingInput = block.input && Object.keys(block.input).length > 0
+
+                console.log(`[Claude Service] ⭐ tool_use stop: ${(block as any).name} [${stopIndex}] buffer=${bufferLen} chars, hasExisting=${hasExistingInput}`)
+
+                // 🔧 CRITICAL FIX: 只有当没有现有 input 且有 buffer 内容时才解析
+                if (!hasExistingInput && hasBuffer && jsonStr) {
                   try {
                     block.input = JSON.parse(jsonStr)
+
+                    // Warn if parsed input is empty
+                    if (block.name === 'Bash' && (!block.input || Object.keys(block.input).length === 0)) {
+                      console.error(`[Claude Service] ⚠️ EMPTY BASH INPUT after parsing ${bufferLen} chars!`)
+                    }
                   } catch (error) {
-                    debugLogger.error('JSON_PARSE_ERROR', {
-                      blockIndex: stopIndex,
-                      jsonStr,
-                      error: error instanceof Error ? error.message : String(error)
-                    })
+                    console.error(`[Claude Service] ❌ JSON parse failed for ${block.name}:`, error instanceof Error ? error.message : String(error))
                     block.input = {}
                   }
                   inputJSONBuffers.delete(stopIndex)
+                } else if (!hasExistingInput && !jsonStr) {
+                  console.error(`[Claude Service] ⚠️ Empty buffer for ${block.name} at stop`)
+                  block.input = {}
                 }
+                // else: hasExistingInput is true, keep the existing input from content_block_start
               }
               break
               
