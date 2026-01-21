@@ -3,6 +3,7 @@ import torch
 import wandb
 import logging
 
+
 import torch.distributed as dist
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -15,7 +16,7 @@ from utils.metrics import Evaluator
 from functools import partial
 from models import _model_dict
 from datasets import _dataset_dict
-
+from report_generator import DiffSRReportGenerator
 
 class BaseTrainer:
     def __init__(self, args):
@@ -375,6 +376,48 @@ class BaseTrainer:
             wandb.run.summary["best_epoch"] = best_epoch
             wandb.run.summary.update(test_loss_record.to_dict())
             wandb.finish()
+        if self.check_main_process():
+          try:
+              import sys
+              from pathlib import Path
+              # 添加 DiffSR 根目录到 sys.path
+              diffsr_root = Path(__file__).parent.parent
+              if str(diffsr_root) not in sys.path:
+                  sys.path.insert(0, str(diffsr_root))
+
+              from report_generator import DiffSRReportGenerator
+
+              # 准备配置数据
+              config_data = {
+                  'model_type': self.model_name,
+                  'epochs': self.epochs,
+                  'batch_size': self.train_loader.batch_size,
+                  'learning_rate': self.optimizer.param_groups[0]['lr'],
+                  'optimizer': self.optimizer.__class__.__name__,
+              }
+
+              # 准备指标数据
+              metrics_data = {
+                  'best_epoch': best_epoch,
+                  'best_valid_loss': best_metrics['valid_loss'] if best_metrics else None,
+                  'final_valid_loss': valid_loss_record.to_dict()['valid_loss'],
+                  'final_test_loss': test_loss_record.to_dict()['test_loss'],
+              }
+
+              # 生成报告
+              generator = DiffSRReportGenerator()
+              report_path = generator.generate_train_report(
+                  config=config_data,
+                  metrics=metrics_data,
+                  output_path=os.path.join(self.saving_path, 'training_report.md')
+              )
+              self.main_log("raining report generated: {}".format(report_path))
+
+          except Exception as e:
+              self.main_log("Failed to generate training report: {}".format(e))
+              import traceback
+              self.main_log(traceback.format_exc())
+
         
         if self.dist and dist.is_initialized():
             dist.barrier()

@@ -168,10 +168,39 @@ export async function* query(
     m1: AssistantMessage,
     m2: AssistantMessage,
   ) => Promise<BinaryFeedbackResult>,
+  recursionDepth: number = 0,
+  errorHistory: string[] = [],
 ): AsyncGenerator<Message, void> {
   const currentRequest = getCurrentRequest()
 
   markPhase('QUERY_INIT')
+
+  // Protection against infinite loops
+  const MAX_RECURSION_DEPTH = 50
+
+  // Check recursion depth
+  if (recursionDepth > MAX_RECURSION_DEPTH) {
+    debugLogger.error('MAX_RECURSION_DEPTH_EXCEEDED', {
+      depth: recursionDepth,
+      messagesCount: messages.length,
+      requestId: currentRequest?.id,
+    })
+
+    logUserFriendly(
+      'RECURSION_LIMIT',
+      {
+        action: 'Stopped',
+        reason: `Maximum recursion depth (${MAX_RECURSION_DEPTH}) exceeded`,
+        suggestion: 'Check recent error messages and try a different approach',
+      },
+      currentRequest?.id,
+    )
+
+    yield createAssistantMessage(
+      `⚠️ 检测到可能的无限循环：已达到最大递归深度 (${MAX_RECURSION_DEPTH})。\n\n这通常是由于重复出现的错误导致的。请检查最近的错误信息并尝试不同的方法。\n\n建议：\n1. 检查工具调用参数是否完整\n2. 确认文件路径是否正确\n3. 尝试将复杂任务拆分为更小的步骤`
+    )
+    return
+  }
 
   // Auto-compact check
   const { messages: processedMessages, wasCompacted } = await checkAutoCompact(
@@ -328,6 +357,7 @@ export async function* query(
   // Recursive query
 
   try {
+    // Continue with recursive query
     yield* await query(
       [...messages, assistantMessage, ...orderedToolResults],
       systemPrompt,
@@ -335,6 +365,8 @@ export async function* query(
       canUseTool,
       toolUseContext,
       getBinaryFeedbackResponse,
+      recursionDepth + 1,
+      errorHistory, // Keep parameter for compatibility
     )
   } catch (error) {
     // Re-throw the error to maintain the original behavior
@@ -397,7 +429,7 @@ export async function* runToolUse(
   debugLogger.flow('TOOL_USE_START', {
     toolName: toolUse.name,
     toolUseID: toolUse.id,
-    inputSize: JSON.stringify(toolUse.input).length,
+    inputSize: toolUse.input ? JSON.stringify(toolUse.input).length : 0,
     siblingToolCount: siblingToolUseIDs.size,
     shouldSkipPermissionCheck: !!shouldSkipPermissionCheck,
     requestId: currentRequest?.id,

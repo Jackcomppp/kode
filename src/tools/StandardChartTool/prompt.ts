@@ -174,6 +174,12 @@ export const PROMPT = `Creates professional standard charts and data visualizati
 4. Set output format and resolution
 5. Generate high-quality visualization
 
+
+**Language Usage:**
+- Use English for all text elements (titles, labels, legends)
+- Example: 'Temperature vs Time' NOT '温度vs时间'
+- Prevents encoding errors
+
 **Integration:**
 Works seamlessly with:
 - TimeSeriesAnalysisTool: Analyze then visualize trends

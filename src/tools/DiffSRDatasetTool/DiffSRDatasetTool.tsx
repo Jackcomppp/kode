@@ -160,7 +160,7 @@ output_path = "${params.output_path?.replace(/\\/g, '/') || ''}"
 operation = "${params.operation}"
 scale_factor = ${params.scale_factor}
 train_ratio = ${params.train_ratio}
-normalize = ${params.normalize}
+normalize = ${params.normalize ? 'True' : 'False'}
 
 try:
     data = load_data(data_path)

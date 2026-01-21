@@ -93,7 +93,7 @@ When the user asks you to create a new git commit, follow these steps carefully:
 </commit_analysis>
 
 4. Create the commit with a message ending with:
-🤖 Generated with ${PRODUCT_NAME} & {MODEL_NAME}
+Generated with ${PRODUCT_NAME} & {MODEL_NAME}
 Co-Authored-By: ${PRODUCT_NAME} <noreply@${PRODUCT_NAME}.com>
 
 - In order to ensure good formatting, ALWAYS pass the commit message via a HEREDOC, a la this example:
@@ -101,7 +101,7 @@ Co-Authored-By: ${PRODUCT_NAME} <noreply@${PRODUCT_NAME}.com>
 git commit -m "$(cat <<'EOF'
    Commit message here.
 
-   🤖 Generated with ${PRODUCT_NAME} & {MODEL_NAME}
+   Generated with ${PRODUCT_NAME} & {MODEL_NAME}
    Co-Authored-By: ${PRODUCT_NAME} <noreply@${PRODUCT_NAME}.com>
    EOF
    )"
@@ -164,7 +164,7 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 ## Test plan
 [Checklist of TODOs for testing the pull request...]
 
-🤖 Generated with [${PRODUCT_NAME}](${PRODUCT_URL}) & {MODEL_NAME}
+Generated with [${PRODUCT_NAME}](${PRODUCT_URL}) & {MODEL_NAME}
 EOF
 )"
 </example>

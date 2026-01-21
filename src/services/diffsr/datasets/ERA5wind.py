@@ -26,19 +26,37 @@ class ERA5WindDataset:
             train_x, train_y, valid_x, valid_y, test_x, test_y, normalizer = torch.load(process_path)
         else:
             print('Processing data...')
-            # Load ERA5 wind data from .npy file
+            # Load ERA5 wind data from .npy file with memory mapping to avoid OOM
             # Expected shape: [B, 512, 512, 2] where channels are u and v components
-            raw_data = np.load(data_path)
-            data = torch.tensor(raw_data, dtype=torch.float32)  # [B, H, W, C]
+            # Or [B, C, H, W] for single channel data
+            raw_data = np.load(data_path, mmap_mode='r')
+            print(f'Data loaded with shape: {raw_data.shape}')
             
-            data_size = data.shape[0]
+            data_size = raw_data.shape[0]
             train_idx = int(data_size * train_ratio)
             valid_idx = int(data_size * (train_ratio + valid_ratio))
             test_idx = int(data_size * (train_ratio + valid_ratio + test_ratio))
             
-            train_x, train_y, normalizer = self.pre_process(data[:train_idx], mode='train', normalize=normalize, normalizer_type=normalizer_type, sample_factor=sample_factor)
-            valid_x, valid_y = self.pre_process(data[train_idx:valid_idx], mode='valid', normalize=normalize, normalizer=normalizer, sample_factor=sample_factor)
-            test_x, test_y = self.pre_process(data[valid_idx:test_idx], mode='test', normalize=normalize, normalizer=normalizer, sample_factor=sample_factor)
+            print(f'Processing training data: 0-{train_idx}')
+            train_data = torch.tensor(raw_data[:train_idx], dtype=torch.float32)
+            if len(train_data.shape) == 4 and train_data.shape[1] < train_data.shape[2]:
+                train_data = train_data.permute(0, 2, 3, 1)
+            train_x, train_y, normalizer = self.pre_process(train_data, mode='train', normalize=normalize, normalizer_type=normalizer_type, sample_factor=sample_factor)
+            del train_data
+            
+            print(f'Processing validation data: {train_idx}-{valid_idx}')
+            valid_data = torch.tensor(raw_data[train_idx:valid_idx], dtype=torch.float32)
+            if len(valid_data.shape) == 4 and valid_data.shape[1] < valid_data.shape[2]:
+                valid_data = valid_data.permute(0, 2, 3, 1)
+            valid_x, valid_y = self.pre_process(valid_data, mode='valid', normalize=normalize, normalizer=normalizer, sample_factor=sample_factor)
+            del valid_data
+            
+            print(f'Processing test data: {valid_idx}-{test_idx}')
+            test_data = torch.tensor(raw_data[valid_idx:test_idx], dtype=torch.float32)
+            if len(test_data.shape) == 4 and test_data.shape[1] < test_data.shape[2]:
+                test_data = test_data.permute(0, 2, 3, 1)
+            test_x, test_y = self.pre_process(test_data, mode='test', normalize=normalize, normalizer=normalizer, sample_factor=sample_factor)
+            del test_data
             print('Saving data...')
             torch.save((train_x, train_y, valid_x, valid_y, test_x, test_y, normalizer), process_path)
             print('Data processed and saved to', process_path)

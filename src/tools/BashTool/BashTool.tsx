@@ -134,9 +134,15 @@ export const BashTool = {
     return `${stdout.trim()}${hasBoth ? '\n' : ''}${errorMessage.trim()}`
   },
   async *call(
-    { command, timeout = 120000 },
+    { command, timeout = 1800000 },  // 🔥 30分钟默认超时，适配长时间数据处理和模型训练任务
     { abortController, readFileTimestamps },
   ) {
+    console.log('[BashTool] =========================')
+    console.log('[BashTool] Starting execution')
+    console.log('[BashTool] command =', command)
+    console.log('[BashTool] timeout =', timeout)
+    console.log('[BashTool] aborted =', abortController.signal.aborted)
+
     let stdout = ''
     let stderr = ''
 
@@ -165,6 +171,32 @@ export const BashTool = {
         abortController.signal,
         timeout,
       )
+
+      // 🔥 Detailed logging after execution
+      console.log('[BashTool] -------------------------')
+      console.log('[BashTool] Execution completed')
+      console.log('[BashTool] result.code =', result.code)
+      console.log('[BashTool] result.interrupted =', result.interrupted)
+      console.log('[BashTool] stdout length =', (result.stdout || '').length, 'bytes')
+      console.log('[BashTool] stderr length =', (result.stderr || '').length, 'bytes')
+
+      if (result.stdout) {
+        console.log('[BashTool] stdout (first 1000 chars):')
+        console.log(result.stdout.slice(0, 1000))
+        if (result.stdout.length > 1000) {
+          console.log('[BashTool] ... (truncated,', result.stdout.length - 1000, 'more chars)')
+        }
+      }
+
+      if (result.stderr) {
+        console.log('[BashTool] stderr (first 1000 chars):')
+        console.log(result.stderr.slice(0, 1000))
+        if (result.stderr.length > 1000) {
+          console.log('[BashTool] ... (truncated,', result.stderr.length - 1000, 'more chars)')
+        }
+      }
+      console.log('[BashTool] =========================')
+
       stdout += (result.stdout || '').trim() + EOL
       stderr += (result.stderr || '').trim() + EOL
       if (result.code !== 0) {
